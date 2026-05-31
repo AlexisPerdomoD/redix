@@ -4,6 +4,7 @@ package protocol
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 )
@@ -18,16 +19,18 @@ const MaxBulkStrLen = 512 << 20
 const MaxArrayLen = 1 << 32
 
 const (
-	RESPTypeSimpleString RESPType = '+'
-	RESPTypeError        RESPType = '-'
-	RESPTypeInteger      RESPType = ':'
-	RESPTypeBulkString   RESPType = '$'
-	RESPTypeArray        RESPType = '*'
+	RESPTypeSimpleStr RESPType = '+'
+	RESPTypeBulkStr   RESPType = '$'
+	RESPTypeErr       RESPType = '-'
+	RESPTypeInt       RESPType = ':'
+	RESPTypeArray     RESPType = '*'
 )
 
 var (
-	ErrMalformedInput = errors.New("malformed input")
-	ErrInvalidLenVal  = errors.New("invalid len val")
+	ErrMalformedInput  = errors.New("malformed input")
+	ErrInvalidLenVal   = errors.New("invalid len val")
+	ErrInvalidValCast  = errors.New("invalid val cast")
+	ErrInvalidTypeCast = errors.New("invalid val type cast")
 )
 
 type RESPVal struct {
@@ -150,16 +153,16 @@ func Parse(r LineReader) (*RESPVal, error) {
 	var val any
 
 	switch rt {
-	case RESPTypeSimpleString:
+	case RESPTypeSimpleStr:
 		val, err = parseSimpleStr(r)
 
-	case RESPTypeError:
+	case RESPTypeErr:
 		val, err = parseErr(r)
 
-	case RESPTypeInteger:
+	case RESPTypeInt:
 		val, err = parseInt(r)
 
-	case RESPTypeBulkString:
+	case RESPTypeBulkStr:
 		val, err = parseBulkStr(r)
 
 	case RESPTypeArray:
@@ -181,32 +184,98 @@ func Parse(r LineReader) (*RESPVal, error) {
 
 // WRITERS
 
-// WrSimpleStr writes a simple string to the given writer.
-func WrSimpleStr(s string, w io.Writer) error {
+func writeSimpleStr(s string, w io.Writer) error {
 	_, err := w.Write([]byte("+" + s + "\r\n"))
 	return err
 }
 
-// WrBulkStr writes a bulk string to the given writer.
-func WrBulkStr(s string, w io.Writer) error {
+func writeBulkStr(s string, w io.Writer) error {
 	_, err := w.Write([]byte("$" + strconv.Itoa(len(s)) + "\r\n" + s + "\r\n"))
 	return err
 }
 
-// WrErr writes an error to the given writer.
-func WrErr(s string, w io.Writer) error {
+func writeErr(s string, w io.Writer) error {
 	_, err := w.Write([]byte("-" + s + "\r\n"))
 	return err
 }
 
-// WrInt writes an integer to the given writer.
-func WrInt(n int64, w io.Writer) error {
+func writeInt(n int64, w io.Writer) error {
 	_, err := w.Write([]byte(":" + strconv.FormatInt(n, 10) + "\r\n"))
 	return err
 }
 
-// WrNil writes a nil value to the given writer.
-func WrNil(w io.Writer) error {
+func writeNil(w io.Writer) error {
 	_, err := w.Write([]byte("$-1\r\n"))
 	return err
+}
+
+func writeArray(s []*RESPVal, w io.Writer) error {
+	if s == nil {
+		return writeNil(w)
+	}
+
+	_, err := fmt.Fprintf(w, "*%d\r\n", len(s))
+	if err != nil {
+		return err
+	}
+
+	for _, val := range s {
+		if err = Write(val, w); err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+}
+
+func Write(val *RESPVal, w io.Writer) error {
+	if val == nil {
+		return writeNil(w)
+	}
+
+	switch val.Type {
+	case RESPTypeSimpleStr:
+		str, ok := val.Val.(string)
+		if !ok {
+			return ErrInvalidValCast
+		}
+
+		return writeSimpleStr(str, w)
+
+	case RESPTypeBulkStr:
+		str, ok := val.Val.(string)
+		if !ok {
+			return ErrInvalidValCast
+		}
+
+		return writeBulkStr(str, w)
+
+	case RESPTypeInt:
+		n, ok := val.Val.(int64)
+		if !ok {
+			return ErrInvalidValCast
+		}
+
+		return writeInt(n, w)
+
+	case RESPTypeErr:
+		str, ok := val.Val.(string)
+		if !ok {
+			return ErrInvalidValCast
+		}
+
+		return writeErr(str, w)
+
+	case RESPTypeArray:
+		arr, ok := val.Val.([]*RESPVal)
+		if !ok {
+			return ErrInvalidValCast
+		}
+
+		return writeArray(arr, w)
+
+	default:
+		return ErrInvalidTypeCast
+	}
 }
