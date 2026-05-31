@@ -27,14 +27,14 @@ func handleInt(_ int64, w io.Writer) error {
 	return protocol.WrErr("ERR clients cannot send integer type", w)
 }
 
-func handleArray(s []any, w io.Writer) error {
+func handleArray(s []*protocol.RESPVal, w io.Writer) error {
 	if len(s) == 0 {
 		return protocol.WrErr("ERR empty array", w)
 	}
 
-	cmdVal, ok := s[0].(*protocol.RESPVal)
-	if !ok {
-		return protocol.WrErr("ERR invalid command format", w)
+	cmdVal := s[0]
+	if cmdVal == nil {
+		return protocol.WrErr("ERR nil command", w)
 	}
 
 	cmd, ok := cmdVal.Val.(string)
@@ -56,7 +56,6 @@ func handleArray(s []any, w io.Writer) error {
 	case RESPCommandPing:
 		return protocol.WrSimpleStr("PONG", w)
 	default:
-		return protocol.WrErr("ERR unknown command", w)
-
+		return protocol.WrErr("ERR invalid command", w)
 	}
 }

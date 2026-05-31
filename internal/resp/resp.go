@@ -62,7 +62,7 @@ func Handle(val *protocol.RESPVal, w io.Writer) error {
 
 		return handleBulkStr(v, w)
 	case protocol.RESPTypeArray:
-		v, ok := val.Val.([]any)
+		v, ok := val.Val.([]*protocol.RESPVal)
 		if !ok {
 			return ErrInvalidType
 		}
