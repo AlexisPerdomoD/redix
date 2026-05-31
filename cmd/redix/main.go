@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/AlexisPerdomo/redix/internal/config"
 	"github.com/AlexisPerdomo/redix/internal/protocol"
 	"github.com/AlexisPerdomo/redix/internal/resp"
 	"github.com/AlexisPerdomo/redix/internal/server"
@@ -18,7 +19,8 @@ import (
 func main() {
 	ctx := context.Background()
 	cfg := server.ServerCfg{
-		Port: "6379",
+		Port:                  config.GetPort(),
+		ConnectionIdleTimeout: config.GetConnectionIdleTimeout(),
 	}
 
 	s, err := server.StartServer(cfg)
