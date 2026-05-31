@@ -49,6 +49,7 @@ Redix is configured through environment variables:
 | --------------------------------- | ----------- | ---------------------------------- |
 | `REDIX_PORT`                      | `6379`      | TCP port to listen on              |
 | `REDIX_CONNECTION_IDLE_TIMEOUT`   | (none)      | Connection idle timeout (e.g. `5m`) |
+| `REDIX_LOG_LEVEL`                 | `INFO`      | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
 
 ### Other commands
 
