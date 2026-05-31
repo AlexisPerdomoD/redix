@@ -64,6 +64,10 @@ func (c *Connection) refreshDeadline() {
 }
 
 func (c *Connection) Close() error {
+	if c.state == ConnStateClosed || c.state == ConnStateClosing {
+		return nil
+	}
+
 	// TODO: consider concurrency safety here
 	c.state = ConnStateClosing
 	if err := c.conn.Close(); err != nil {

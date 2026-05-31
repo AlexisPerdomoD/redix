@@ -38,6 +38,10 @@ func (s *Server) State() ServerState {
 }
 
 func (s *Server) Close() error {
+	if s.state == ServerStateStopped || s.state == ServerStateStopping {
+		return nil
+	}
+
 	// TODO: consider concurrency safety here
 	s.state = ServerStateStopping
 
