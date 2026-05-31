@@ -34,12 +34,21 @@ make build   # compile to build/redix
 make run     # build and start the server
 ```
 
-The server listens on `:6379` (default Redis port). Test it with any Redis client:
+The server listens on `:6379` by default. Test it with any Redis client:
 
 ```bash
 redis-cli PING
 # +PONG
 ```
+
+### Configuration
+
+Redix is configured through environment variables:
+
+| Variable                          | Default     | Description                        |
+| --------------------------------- | ----------- | ---------------------------------- |
+| `REDIX_PORT`                      | `6379`      | TCP port to listen on              |
+| `REDIX_CONNECTION_IDLE_TIMEOUT`   | (none)      | Connection idle timeout (e.g. `5m`) |
 
 ### Other commands
 
@@ -55,6 +64,7 @@ redis-cli PING
 ```
 cmd/redix/main.go          Entrypoint
 internal/
+├── config/                Environment-based configuration
 ├── server/                TCP listener, connection state machine, accept loop
 ├── protocol/              RESP type definitions, parser, and wire writers
 ├── resp/                  Command dispatch and handler implementations
