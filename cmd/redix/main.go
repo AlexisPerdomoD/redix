@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"log/slog"
 
+	"github.com/AlexisPerdomo/redix/internal/protocol"
+	"github.com/AlexisPerdomo/redix/internal/resp"
 	"github.com/AlexisPerdomo/redix/internal/server"
 )
 
@@ -12,10 +15,8 @@ import (
 
 func main() {
 	ctx := context.Background()
-
 	cfg := server.ServerCfg{
 		Port: "6379",
-		Ctx:  ctx,
 	}
 
 	s, err := server.StartServer(cfg)
@@ -24,25 +25,39 @@ func main() {
 	}
 	defer s.Close()
 
-	for {
-		c, err := s.Accept()
-		if err != nil {
-			slog.ErrorContext(s.Ctx(), "error accepting connection", "err", err)
-			continue
-		}
+	s.Serve(ctx, handleConnection)
+}
 
-		buf := make([]byte, 1024)
-		_, err = c.Read(buf)
+func handleConnection(ctx context.Context, c *server.Connection) {
+	if c.State() != server.ConnStateConnected {
+		slog.WarnContext(ctx, "connection is not connected")
+		return
+	}
+
+	// TODO: consider concurrency safety here
+	go func() {
+		<-ctx.Done()
+		c.Close()
+	}()
+
+	// TODO: evaluate if needed specifict dinamic buf reader / writer implementation
+	// since bufio.Reader / Writer can be memory consuming as default implementation
+	r := bufio.NewReader(c)
+	for {
+		val, err := protocol.Parse(r)
 		if err != nil {
 			if err == io.EOF {
-				slog.InfoContext(s.Ctx(), "connection closed")
-				continue
+				slog.DebugContext(ctx, "connection closed")
+				return
 			}
 
-			slog.ErrorContext(s.Ctx(), "error reading from connection", "err", err)
-			continue
+			slog.WarnContext(ctx, "error parsing", "err", err)
+			return
 		}
 
-		c.Write(buf)
+		if err := resp.Handle(val, c); err != nil {
+			slog.WarnContext(ctx, "error handling", "err", err)
+			return
+		}
 	}
 }

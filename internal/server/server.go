@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 )
 
@@ -20,21 +21,21 @@ const (
 	ServerStateStopped  ServerState = "stopped"
 )
 
-type S struct {
-	listener net.Listener
-	ctx      context.Context
-	state    ServerState
+type ServerCfg struct {
+	Port string
 }
 
-func (s *S) State() ServerState {
+type Server struct {
+	listener net.Listener
+	state    ServerState
+	cfg      ServerCfg
+}
+
+func (s *Server) State() ServerState {
 	return s.state
 }
 
-func (s *S) Ctx() context.Context {
-	return s.ctx
-}
-
-func (s *S) Close() error {
+func (s *Server) Close() error {
 	// TODO: consider concurrency safety here
 	s.state = ServerStateStopping
 
@@ -50,7 +51,11 @@ func (s *S) Close() error {
 	return nil
 }
 
-func (s *S) Accept() (*Connection, error) {
+func (s *Server) accept() (*Connection, error) {
+	if s.state != ServerStateRunning {
+		return nil, ErrServerIsNotRunning
+	}
+
 	conn, err := s.listener.Accept()
 	if err != nil {
 		return nil, err
@@ -62,21 +67,38 @@ func (s *S) Accept() (*Connection, error) {
 	}, nil
 }
 
-type ServerCfg struct {
-	Port string
-	Ctx  context.Context
+func (s *Server) Serve(ctx context.Context, h func(context.Context, *Connection)) {
+	go func() {
+		<-ctx.Done()
+		s.Close()
+	}()
+
+	for {
+		c, err := s.accept()
+		if err != nil {
+			if err == ErrServerHasBeenClosed || err == ErrServerIsNotRunning {
+				return
+			}
+
+			slog.ErrorContext(ctx, "error accepting connection", "err", err)
+			continue
+		}
+
+		// TODO: evaluate needed concurrency safety mechanism here
+		// go h(ctx, c)
+		h(ctx, c)
+	}
 }
 
 // StartServer starts a server on the given configuration.
-func StartServer(cfg ServerCfg) (*S, error) {
+func StartServer(cfg ServerCfg) (*Server, error) {
 	l, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
 		return nil, err
 	}
 
-	return &S{
+	return &Server{
 		listener: l,
 		state:    ServerStateRunning,
-		ctx:      cfg.Ctx,
 	}, nil
 }

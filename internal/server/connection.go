@@ -1,10 +1,8 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"net"
-	"time"
 )
 
 type ConnState string
@@ -23,6 +21,7 @@ var (
 type Connection struct {
 	conn  net.Conn
 	state ConnState
+	// TODO: evaluate concurrency safety mechanism here
 }
 
 func (c *Connection) State() ConnState {
@@ -41,31 +40,12 @@ func (c *Connection) Read(b []byte) (int, error) {
 	return c.conn.Read(b)
 }
 
-// TODO: evaluate if conceptualy appropriate
-func (c *Connection) ReadCtx(ctx context.Context, b []byte) (int, error) {
-	deadline, ok := ctx.Deadline()
-	if ok {
-		if err := c.conn.SetReadDeadline(deadline); err != nil {
-			return 0, err
-		}
-
-		defer c.conn.SetReadDeadline(time.Time{})
-	}
-
-	return c.Read(b)
-}
-
 func (c *Connection) Write(b []byte) (int, error) {
 	if c.state != ConnStateConnected {
 		return 0, ErrConnIsNotConnected
 	}
 
 	return c.conn.Write(b)
-}
-
-// TODO: evaluate if conceptualy appropriate
-func (c *Connection) WriteCtx(ctx context.Context, b []byte) (int, error) {
-	return 0, errors.New("not implemented")
 }
 
 func (c *Connection) Close() error {
@@ -81,3 +61,5 @@ func (c *Connection) Close() error {
 	c.state = ConnStateClosed
 	return nil
 }
+
+
