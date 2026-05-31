@@ -31,8 +31,9 @@ func main() {
 		panic(err)
 	}
 	defer s.Close()
-
 	ctx := context.Background()
+
+	slog.InfoContext(ctx, "redix server started", "port", cfg.Port)
 	s.Serve(ctx, handleConnection)
 }
 
