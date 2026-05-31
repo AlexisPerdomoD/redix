@@ -178,3 +178,35 @@ func Parse(r LineReader) (*RESPVal, error) {
 	}, nil
 
 }
+
+// WRITERS
+
+// WrSimpleStr writes a simple string to the given writer.
+func WrSimpleStr(s string, w io.Writer) error {
+	_, err := w.Write([]byte("+" + s + "\r\n"))
+	return err
+}
+
+// WrBulkStr writes a bulk string to the given writer.
+func WrBulkStr(s string, w io.Writer) error {
+	_, err := w.Write([]byte("$" + strconv.Itoa(len(s)) + "\r\n" + s + "\r\n"))
+	return err
+}
+
+// WrErr writes an error to the given writer.
+func WrErr(s string, w io.Writer) error {
+	_, err := w.Write([]byte("-" + s + "\r\n"))
+	return err
+}
+
+// WrInt writes an integer to the given writer.
+func WrInt(n int64, w io.Writer) error {
+	_, err := w.Write([]byte(":" + strconv.FormatInt(n, 10) + "\r\n"))
+	return err
+}
+
+// WrNil writes a nil value to the given writer.
+func WrNil(w io.Writer) error {
+	_, err := w.Write([]byte("$-1\r\n"))
+	return err
+}
