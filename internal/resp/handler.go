@@ -2,6 +2,7 @@ package resp
 
 import (
 	"io"
+	"strings"
 
 	"github.com/AlexisPerdomo/redix/internal/protocol"
 )
@@ -14,15 +15,15 @@ func handleSimpleStr(s string, w io.Writer) error {
 	return protocol.WrErr("ERR unknown command", w)
 }
 
-func handleBulkStr(s string, w io.Writer) error {
+func handleBulkStr(_ string, w io.Writer) error {
 	return protocol.WrErr("ERR unexpected bulk string", w)
 }
 
-func handleErr(s string, w io.Writer) error {
+func handleErr(_ string, w io.Writer) error {
 	return protocol.WrErr("ERR received error", w)
 }
 
-func handleInt(s int64, w io.Writer) error {
+func handleInt(_ int64, w io.Writer) error {
 	return protocol.WrErr("ERR clients cannot send integer type", w)
 }
 
@@ -41,7 +42,7 @@ func handleArray(s []any, w io.Writer) error {
 		return protocol.WrErr("ERR invalid command type value", w)
 	}
 
-	switch RESPCommand(cmd) {
+	switch RESPCommand(strings.ToUpper(cmd)) {
 	case RESPCommandGet:
 		return protocol.WrErr("ERR not implemented", w)
 	case RESPCommandSet:

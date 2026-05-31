@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 
 	"github.com/AlexisPerdomo/redix/internal/protocol"
 	"github.com/AlexisPerdomo/redix/internal/resp"
@@ -43,10 +45,11 @@ func handleConnection(ctx context.Context, c *server.Connection) {
 	// TODO: evaluate if needed specifict dinamic buf reader / writer implementation
 	// since bufio.Reader / Writer can be memory consuming as default implementation
 	r := bufio.NewReader(c)
+	w := bufio.NewWriter(c)
 	for {
 		val, err := protocol.Parse(r)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF || errors.Is(err, net.ErrClosed) {
 				slog.DebugContext(ctx, "connection closed")
 				return
 			}
@@ -55,8 +58,13 @@ func handleConnection(ctx context.Context, c *server.Connection) {
 			return
 		}
 
-		if err := resp.Handle(val, c); err != nil {
+		if err := resp.Handle(val, w); err != nil {
 			slog.WarnContext(ctx, "error handling", "err", err)
+			return
+		}
+
+		if err := w.Flush(); err != nil {
+			slog.WarnContext(ctx, "error flushing", "err", err)
 			return
 		}
 	}

@@ -27,6 +27,10 @@ var (
 )
 
 func Handle(val *protocol.RESPVal, w io.Writer) error {
+	if val == nil {
+		return protocol.WrNil(w)
+	}
+
 	switch val.Type {
 	case protocol.RESPTypeSimpleString:
 		v, ok := val.Val.(string)
