@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"time"
 )
 
 var (
@@ -22,7 +23,8 @@ const (
 )
 
 type ServerCfg struct {
-	Port string
+	Port                  string
+	ConnectionIdleTimeout *time.Duration
 }
 
 type Server struct {
@@ -86,6 +88,10 @@ func (s *Server) Serve(ctx context.Context, h func(context.Context, *Connection)
 
 		// TODO: evaluate needed concurrency safety mechanism here
 		// go h(ctx, c)
+		if s.cfg.ConnectionIdleTimeout != nil {
+			c.SetIdleTimeout(*s.cfg.ConnectionIdleTimeout)
+		}
+
 		h(ctx, c)
 	}
 }

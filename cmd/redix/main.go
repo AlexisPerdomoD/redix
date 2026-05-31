@@ -47,6 +47,7 @@ func handleConnection(ctx context.Context, c *server.Connection) {
 	r := bufio.NewReader(c)
 	w := bufio.NewWriter(c)
 	for {
+
 		val, err := protocol.Parse(r)
 		if err != nil {
 			if err == io.EOF || errors.Is(err, net.ErrClosed) {

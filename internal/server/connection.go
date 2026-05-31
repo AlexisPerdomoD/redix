@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"net"
+	"time"
 )
 
 type ConnState string
@@ -19,8 +20,9 @@ var (
 )
 
 type Connection struct {
-	conn  net.Conn
-	state ConnState
+	conn                net.Conn
+	state               ConnState
+	idleTimeoutDuration *time.Duration
 	// TODO: evaluate concurrency safety mechanism here
 }
 
@@ -37,6 +39,7 @@ func (c *Connection) Read(b []byte) (int, error) {
 		return 0, nil
 	}
 
+	c.refreshDeadline()
 	return c.conn.Read(b)
 }
 
@@ -46,6 +49,18 @@ func (c *Connection) Write(b []byte) (int, error) {
 	}
 
 	return c.conn.Write(b)
+}
+
+func (c *Connection) SetIdleTimeout(d time.Duration) {
+	c.idleTimeoutDuration = &d
+}
+
+func (c *Connection) refreshDeadline() {
+	if c.idleTimeoutDuration == nil {
+		return
+	}
+
+	c.conn.SetDeadline(time.Now().Add(*c.idleTimeoutDuration))
 }
 
 func (c *Connection) Close() error {
@@ -61,5 +76,3 @@ func (c *Connection) Close() error {
 	c.state = ConnStateClosed
 	return nil
 }
-
-
