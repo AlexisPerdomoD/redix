@@ -28,11 +28,11 @@ var (
 
 func Handle(val *protocol.RESPVal, w io.Writer) error {
 	if val == nil {
-		return protocol.WrNil(w)
+		return protocol.Write(nil, w)
 	}
 
 	switch val.Type {
-	case protocol.RESPTypeSimpleString:
+	case protocol.RESPTypeSimpleStr:
 		v, ok := val.Val.(string)
 		if !ok {
 			return ErrInvalidType
@@ -40,21 +40,21 @@ func Handle(val *protocol.RESPVal, w io.Writer) error {
 
 		return handleSimpleStr(v, w)
 
-	case protocol.RESPTypeError:
+	case protocol.RESPTypeErr:
 		v, ok := val.Val.(string)
 		if !ok {
 			return ErrInvalidType
 		}
 		return handleErr(v, w)
 
-	case protocol.RESPTypeInteger:
+	case protocol.RESPTypeInt:
 		v, ok := val.Val.(int64)
 		if !ok {
 			return ErrInvalidType
 		}
 
 		return handleInt(v, w)
-	case protocol.RESPTypeBulkString:
+	case protocol.RESPTypeBulkStr:
 		v, ok := val.Val.(string)
 		if !ok {
 			return ErrInvalidType
