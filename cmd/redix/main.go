@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 
 	"github.com/AlexisPerdomo/redix/internal/config"
 	"github.com/AlexisPerdomo/redix/internal/protocol"
@@ -17,7 +18,9 @@ import (
 // “What I cannot create, I do not understand” - Richard Feynman.
 
 func main() {
-	ctx := context.Background()
+	ll := config.GetLogLevel()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: ll})))
+
 	cfg := server.ServerCfg{
 		Port:                  config.GetPort(),
 		ConnectionIdleTimeout: config.GetConnectionIdleTimeout(),
@@ -29,6 +32,7 @@ func main() {
 	}
 	defer s.Close()
 
+	ctx := context.Background()
 	s.Serve(ctx, handleConnection)
 }
 
