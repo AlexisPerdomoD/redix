@@ -82,10 +82,7 @@ func handleArray(s []*protocol.RESPVal, w io.Writer) error {
 	case RESPCommandExists:
 		return protocol.Write(noImpl, w)
 	case RESPCommandPing:
-		return protocol.Write(&protocol.RESPVal{
-			Type: protocol.RESPTypeSimpleStr,
-			Val:  "PONG",
-		}, w)
+		return pingCmd(w)
 	default:
 		return protocol.Write(&protocol.RESPVal{
 			Type: protocol.RESPTypeErr,
