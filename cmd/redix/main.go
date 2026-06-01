@@ -54,8 +54,8 @@ func handleConnection(ctx context.Context, c *server.Connection) {
 	r := bufio.NewReader(c)
 	w := bufio.NewWriter(c)
 	for {
-
 		val, err := protocol.Parse(r)
+		slog.DebugContext(ctx, "parsed request", "val", val)
 		if err != nil {
 			if err == io.EOF || errors.Is(err, net.ErrClosed) {
 				slog.DebugContext(ctx, "connection closed")

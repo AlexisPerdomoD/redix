@@ -11,12 +11,18 @@ import (
 type RESPCommand string
 
 const (
-	RESPCommandGet    RESPCommand = "GET"
-	RESPCommandSet    RESPCommand = "SET"
-	RESPCommandDel    RESPCommand = "DEL"
-	RESPCommandKeys   RESPCommand = "KEYS"
-	RESPCommandExists RESPCommand = "EXISTS"
-	RESPCommandPing   RESPCommand = "PING"
+	RESPCommandSet         RESPCommand = "SET"
+	RESPCommandGet         RESPCommand = "GET"
+	RESPCommandDel         RESPCommand = "DEL"
+	RESPCommandKeys        RESPCommand = "KEYS"
+	RESPCommandExists      RESPCommand = "EXISTS"
+	RESPCommandExpire      RESPCommand = "EXPIRE"
+	RESPCommandTTL         RESPCommand = "TTL"
+	RESPCommandPing        RESPCommand = "PING"
+	RESPCommandCommand     RESPCommand = "COMMAND"
+	RESPCommandCommandDocs RESPCommand = "COMMAND DOCS"
+	RESPCommandCommandInfo RESPCommand = "COMMAND INFO"
+	RESPCommandInfoServer  RESPCommand = "INFO SERVER"
 )
 
 var (

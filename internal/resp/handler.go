@@ -71,9 +71,9 @@ func handleArray(s []*protocol.RESPVal, w io.Writer) error {
 		Val:  "ERR not implemented",
 	}
 	switch RESPCommand(strings.ToUpper(cmd)) {
-	case RESPCommandGet:
-		return protocol.Write(noImpl, w)
 	case RESPCommandSet:
+		return protocol.Write(noImpl, w)
+	case RESPCommandGet:
 		return protocol.Write(noImpl, w)
 	case RESPCommandDel:
 		return protocol.Write(noImpl, w)
@@ -81,8 +81,20 @@ func handleArray(s []*protocol.RESPVal, w io.Writer) error {
 		return protocol.Write(noImpl, w)
 	case RESPCommandExists:
 		return protocol.Write(noImpl, w)
+	case RESPCommandExpire:
+		return protocol.Write(noImpl, w)
+	case RESPCommandTTL:
+		return protocol.Write(noImpl, w)
 	case RESPCommandPing:
 		return pingCmd(w, s[1:])
+	case RESPCommandCommand:
+		return protocol.Write(noImpl, w)
+	case RESPCommandCommandDocs:
+		return protocol.Write(noImpl, w)
+	case RESPCommandCommandInfo:
+		return protocol.Write(noImpl, w)
+	case RESPCommandInfoServer:
+		return protocol.Write(noImpl, w)
 	default:
 		return protocol.Write(&protocol.RESPVal{
 			Type: protocol.RESPTypeErr,
