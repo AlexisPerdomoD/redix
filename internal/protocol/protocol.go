@@ -38,6 +38,10 @@ type RESPVal struct {
 	Val  any
 }
 
+func (r *RESPVal) String() string {
+	return fmt.Sprintf("&{Type:%d Val:%v}", r.Type, r.Val)
+}
+
 type LineReader interface {
 	io.Reader
 
@@ -110,7 +114,6 @@ func parseArray(r LineReader) ([]*RESPVal, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	ln, err := strconv.ParseInt(string(bytes.TrimRight(b, CRLF)), 10, 64)
 	if err != nil {
 		return nil, err
@@ -125,7 +128,7 @@ func parseArray(r LineReader) ([]*RESPVal, error) {
 	}
 
 	// minimal initial len
-	res := make([]*RESPVal, min(64, ln))
+	res := make([]*RESPVal, 0, min(64, ln))
 
 	for range ln {
 		val, err := Parse(r)
