@@ -9,10 +9,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/AlexisPerdomo/redix/internal/config"
-	"github.com/AlexisPerdomo/redix/internal/protocol"
-	"github.com/AlexisPerdomo/redix/internal/resp"
-	"github.com/AlexisPerdomo/redix/internal/server"
+	"github.com/AlexisPerdomoD/redix/internal/config"
+	"github.com/AlexisPerdomoD/redix/internal/protocol"
+	"github.com/AlexisPerdomoD/redix/internal/resp"
+	"github.com/AlexisPerdomoD/redix/internal/server"
 )
 
 // “What I cannot create, I do not understand” - Richard Feynman.

@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/AlexisPerdomo/redix/internal/protocol"
+	"github.com/AlexisPerdomoD/redix/internal/protocol"
 )
 
 func handleSimpleStr(s string, w io.Writer) error {

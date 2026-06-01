@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/AlexisPerdomo/redix/internal/protocol"
+	"github.com/AlexisPerdomoD/redix/internal/protocol"
 )
 
 type RESPCommand string

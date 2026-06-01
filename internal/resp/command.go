@@ -3,7 +3,7 @@ package resp
 import (
 	"io"
 
-	"github.com/AlexisPerdomo/redix/internal/protocol"
+	"github.com/AlexisPerdomoD/redix/internal/protocol"
 )
 
 func pingCmd(w io.Writer) error {
