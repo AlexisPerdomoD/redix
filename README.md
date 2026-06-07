@@ -14,6 +14,21 @@ Redix is a from-scratch reimplementation of a Redis-compatible server that prior
 - **Concurrent by design** — Goroutine-based connection handling with proper synchronization from day one.
 - **Performance parity** — Throughput and latency competitive with Redis for the implemented feature set.
 
+## Supported commands
+
+| Command          | Status | Notes                           |
+| ---------------- | ------ | ------------------------------- |
+| `PING`           | ✓      | With optional argument echo     |
+| `SET`            | ✓      | With default TTL                |
+| `GET`            | ✓      |                                 |
+| `DEL`            | ✓      | Variadic                        |
+| `HSET`           | ✓      |                                 |
+| `HGET`           | ✓      |                                 |
+| `HDEL`           | ✓      | Variadic                        |
+| `EXISTS`         | ✓      | Variadic                        |
+| `EXPIRE`         | ✓      |                                 |
+| `TTL`            | ✓      | Returns remaining seconds       |
+
 ## Design
 
 - **Zero external dependencies.** Everything is built on Go's standard library.
@@ -39,6 +54,12 @@ The server listens on `:6379` by default. Test it with any Redis client:
 ```bash
 redis-cli PING
 # +PONG
+
+redis-cli SET foo bar
+# +OK
+
+redis-cli GET foo
+# "bar"
 ```
 
 ### Configuration
@@ -67,12 +88,10 @@ cmd/redix/main.go          Entrypoint
 internal/
 ├── config/                Environment-based configuration
 ├── server/                TCP listener, connection state machine, accept loop
-├── protocol/              RESP type definitions, parser, and wire writers
-├── resp/                  Command dispatch and handler implementations
-└── store/                 In-memory key-value store
+├── protocol/              RESP type definitions, parser, and serializer
+├── resp/                  Command dispatch, handler implementations
+└── store/                 In-memory key-value store with TTL and hash support
 ```
-
-Internal packages are progressively being built out, bottom-up, starting from the protocol layer.
 
 ## License
 
