@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 )
 
 type RESPType byte
@@ -40,6 +41,14 @@ type RESPVal struct {
 
 func (r *RESPVal) String() string {
 	return fmt.Sprintf("&{Type:%d Val:%v}", r.Type, r.Val)
+}
+
+func NilBulkStr() *RESPVal {
+	return &RESPVal{Type: RESPTypeBulkStr, Val: nil}
+}
+
+func NilArray() *RESPVal {
+	return &RESPVal{Type: RESPTypeArray, Val: nil}
 }
 
 type LineReader interface {
@@ -185,100 +194,111 @@ func Parse(r LineReader) (*RESPVal, error) {
 
 }
 
-// WRITERS
-
-func writeSimpleStr(s string, w io.Writer) error {
-	_, err := w.Write([]byte("+" + s + "\r\n"))
-	return err
+func formatSimpleStr(s string) string {
+	return "+" + s + CRLF
 }
 
-func writeBulkStr(s string, w io.Writer) error {
-	_, err := w.Write([]byte("$" + strconv.Itoa(len(s)) + "\r\n" + s + "\r\n"))
-	return err
+func formatBulkStr(s string) string {
+	return "$" + strconv.Itoa(len(s)) + CRLF + s + CRLF
 }
 
-func writeErr(s string, w io.Writer) error {
-	_, err := w.Write([]byte("-" + s + "\r\n"))
-	return err
+func formatErr(s string) string {
+	return "-" + s + CRLF
 }
 
-func writeInt(n int64, w io.Writer) error {
-	_, err := w.Write([]byte(":" + strconv.FormatInt(n, 10) + "\r\n"))
-	return err
+func formatInt(n int64) string {
+	return ":" + strconv.FormatInt(n, 10) + CRLF
 }
 
-func writeNil(w io.Writer) error {
-	_, err := w.Write([]byte("$-1\r\n"))
-	return err
+func formatBulkStrNil() string {
+	return "$-1" + CRLF
 }
 
-func writeArray(s []*RESPVal, w io.Writer) error {
-	if s == nil {
-		return writeNil(w)
-	}
-
-	_, err := fmt.Fprintf(w, "*%d\r\n", len(s))
-	if err != nil {
-		return err
-	}
-
-	for _, val := range s {
-		if err = Write(val, w); err != nil {
-			return err
-		}
-
-	}
-
-	return nil
+func formatArrayNil() string {
+	return "*-1" + CRLF
 }
 
-func Write(val *RESPVal, w io.Writer) error {
+func Format(val *RESPVal) (string, error) {
 	if val == nil {
-		return writeNil(w)
+		return "", ErrInvalidValCast
 	}
 
 	switch val.Type {
 	case RESPTypeSimpleStr:
 		str, ok := val.Val.(string)
 		if !ok {
-			return ErrInvalidValCast
+			return "", ErrInvalidValCast
 		}
 
-		return writeSimpleStr(str, w)
+		return formatSimpleStr(str), nil
 
 	case RESPTypeBulkStr:
-		str, ok := val.Val.(string)
-		if !ok {
-			return ErrInvalidValCast
+		if val.Val == nil {
+			return formatBulkStrNil(), nil
 		}
 
-		return writeBulkStr(str, w)
+		str, ok := val.Val.(string)
+		if !ok {
+			return "", ErrInvalidValCast
+		}
+
+		return formatBulkStr(str), nil
 
 	case RESPTypeInt:
 		n, ok := val.Val.(int64)
 		if !ok {
-			return ErrInvalidValCast
+			return "", ErrInvalidValCast
 		}
 
-		return writeInt(n, w)
+		return formatInt(n), nil
 
 	case RESPTypeErr:
 		str, ok := val.Val.(string)
 		if !ok {
-			return ErrInvalidValCast
+			return "", ErrInvalidValCast
 		}
 
-		return writeErr(str, w)
+		return formatErr(str), nil
 
 	case RESPTypeArray:
-		arr, ok := val.Val.([]*RESPVal)
-		if !ok {
-			return ErrInvalidValCast
+		if val.Val == nil {
+			return formatArrayNil(), nil
 		}
 
-		return writeArray(arr, w)
+		arr, ok := val.Val.([]*RESPVal)
+		if !ok {
+			return "", ErrInvalidValCast
+		}
+
+		if len(arr) == 0 {
+			return "*0\r\n", nil
+		}
+
+		sb := strings.Builder{}
+		fmt.Fprintf(&sb, "*%d\r\n", len(arr))
+
+		for _, val := range arr {
+			el, err := Format(val)
+			if err != nil {
+				return "", err
+			}
+			sb.WriteString(el)
+		}
+
+		return sb.String(), nil
 
 	default:
-		return ErrInvalidTypeCast
+		return "", ErrInvalidTypeCast
 	}
+}
+
+// WRITER
+func FormatWrite(val *RESPVal, w io.Writer) error {
+	res, err := Format(val)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, res)
+	return err
 }

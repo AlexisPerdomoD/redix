@@ -12,8 +12,11 @@ type RESPCommand string
 
 const (
 	RESPCommandSet         RESPCommand = "SET"
+	RESPCommandHSet        RESPCommand = "HSET"
 	RESPCommandGet         RESPCommand = "GET"
+	RESPCommandHGet        RESPCommand = "HGET"
 	RESPCommandDel         RESPCommand = "DEL"
+	RESPCommandHDel        RESPCommand = "HDEL"
 	RESPCommandKeys        RESPCommand = "KEYS"
 	RESPCommandExists      RESPCommand = "EXISTS"
 	RESPCommandExpire      RESPCommand = "EXPIRE"
@@ -30,11 +33,12 @@ var (
 	ErrInvalidType    = errors.New("invalid type assertion")
 	ErrUnknownCommand = errors.New("unknown command")
 	ErrInvalidCommand = errors.New("invalid command")
+	ErrNilVal         = errors.New("nil val")
 )
 
 func Handle(val *protocol.RESPVal, w io.Writer) error {
 	if val == nil {
-		return protocol.Write(nil, w)
+		return ErrNilVal
 	}
 
 	switch val.Type {

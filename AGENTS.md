@@ -23,16 +23,17 @@ Use conventional commits:
 type(scope): short imperative description
 ```
 
-| Type       | When to use               |
-| ---------- | -------------------------- |
-| `feat`     | New feature or command     |
-| `fix`      | Bug fix                    |
-| `docs`     | Documentation              |
-| `refactor` | Code restructuring         |
-| `test`     | Adding or updating tests   |
-| `chore`    | Build, config, tooling     |
+| Type       | When to use              |
+| ---------- | ------------------------ |
+| `feat`     | New feature or command   |
+| `fix`      | Bug fix                  |
+| `docs`     | Documentation            |
+| `refactor` | Code restructuring       |
+| `test`     | Adding or updating tests |
+| `chore`    | Build, config, tooling   |
 
 Examples:
+
 ```
 feat(server): implement RESP2 parser
 chore: add Makefile and .gitignore
