@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> *"What I cannot create, I do not understand."* — Richard Feynman
+> _"What I cannot create, I do not understand."_ — Richard Feynman
 
 Redix is a from-scratch Redis-protocol-compatible server built entirely on Go's standard library. It implements the RESP2 wire protocol with a concurrent connection handler, a thread-safe in-memory key-value store with TTL semantics and automatic expiration, and a modular append-only file (AOF) persistence layer. Zero external dependencies.
 
@@ -20,18 +20,18 @@ Redix reflects several deliberate engineering decisions:
 
 ## Supported commands
 
-| Command          | Status | Notes                           |
-| ---------------- | ------ | ------------------------------- |
-| `PING`           | ✓      | With optional argument echo     |
-| `SET`            | ✓      | With default TTL                |
-| `GET`            | ✓      |                                 |
-| `DEL`            | ✓      | Variadic                        |
-| `HSET`           | ✓      |                                 |
-| `HGET`           | ✓      |                                 |
-| `HDEL`           | ✓      | Variadic                        |
-| `EXISTS`         | ✓      | Variadic                        |
-| `EXPIRE`         | ✓      |                                 |
-| `TTL`            | ✓      | Returns remaining seconds       |
+| Command  | Status | Notes                       |
+| -------- | ------ | --------------------------- |
+| `PING`   | ✓      | With optional argument echo |
+| `SET`    | ✓      | With default TTL            |
+| `GET`    | ✓      |                             |
+| `DEL`    | ✓      | Variadic                    |
+| `HSET`   | ✓      |                             |
+| `HGET`   | ✓      |                             |
+| `HDEL`   | ✓      | Variadic                    |
+| `EXISTS` | ✓      | Variadic                    |
+| `EXPIRE` | ✓      |                             |
+| `TTL`    | ✓      | Returns remaining seconds   |
 
 ## Architecture
 
@@ -58,13 +58,13 @@ Redix reflects several deliberate engineering decisions:
 
 ### Layer responsibilities
 
-| Layer | Package | Responsibility |
-|-------|---------|---------------|
-| Server | `internal/server/` | TCP listener, connection state machine, accept loop. Each connection runs in its own goroutine. |
-| Protocol | `internal/protocol/` | RESP2 type definitions, parser, and serializer. Handles byte-level wire encoding. |
-| Command | `internal/resp/` | Command dispatch and handler implementations. Translates parsed RESP frames into store operations. |
-| Store | `internal/store/` | Thread-safe in-memory key-value store. Supports strings, hashes, TTL, and automatic expired-key eviction via a background goroutine. |
-| Persistence | `internal/aof/` | Append-only file persistence. Fully decoupled: the store has no awareness of persistence semantics. |
+| Layer       | Package              | Responsibility                                                                                                                       |
+| ----------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Server      | `internal/server/`   | TCP listener, connection state machine, accept loop. Each connection runs in its own goroutine.                                      |
+| Protocol    | `internal/protocol/` | RESP2 type definitions, parser, and serializer. Handles byte-level wire encoding.                                                    |
+| Command     | `internal/resp/`     | Command dispatch and handler implementations. Translates parsed RESP frames into store operations.                                   |
+| Store       | `internal/store/`    | Thread-safe in-memory key-value store. Supports strings, hashes, TTL, and automatic expired-key eviction via a background goroutine. |
+| Persistence | `internal/aof/`      | Append-only file persistence. Fully decoupled: the store has no awareness of persistence semantics.                                  |
 
 ## Technical highlights
 
@@ -105,11 +105,11 @@ redis-cli GET foo
 
 Redix is configured through environment variables:
 
-| Variable                        | Default     | Description                              |
-| ------------------------------- | ----------- | ---------------------------------------- |
-| `REDIX_PORT`                    | `6379`      | TCP port to listen on                    |
-| `REDIX_CONNECTION_IDLE_TIMEOUT` | (none)      | Connection idle timeout (e.g. `5m`)      |
-| `REDIX_LOG_LEVEL`               | `INFO`      | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| Variable                        | Default | Description                                 |
+| ------------------------------- | ------- | ------------------------------------------- |
+| `REDIX_PORT`                    | `6379`  | TCP port to listen on                       |
+| `REDIX_CONNECTION_IDLE_TIMEOUT` | (none)  | Connection idle timeout (e.g. `5m`)         |
+| `REDIX_LOG_LEVEL`               | `INFO`  | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
 
 ### Development commands
 
