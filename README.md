@@ -1,18 +1,22 @@
 # Redix
 
-A lightweight, Redis-protocol-compatible server built from scratch in Go.
+[![Go Version](https://img.shields.io/badge/Go-1.26.3-00ADD8?logo=go)](https://go.dev)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> _"What I cannot create, I do not understand."_ — Richard Feynman
+> *"What I cannot create, I do not understand."* — Richard Feynman
 
-Redix is a from-scratch reimplementation of a Redis-compatible server that prioritizes clean, didactic code without sacrificing performance. The project aims to deepen practical knowledge of Go's standard library — networking, concurrency, and systems programming — while producing a lightweight but production-viable alternative to a conventional Redis server. Zero external dependencies.
+Redix is a from-scratch Redis-protocol-compatible server built entirely on Go's standard library. It implements the RESP2 wire protocol with a concurrent connection handler, a thread-safe in-memory key-value store with TTL semantics and automatic expiration, and a modular append-only file (AOF) persistence layer. Zero external dependencies.
 
-## Goals
+## Design rationale
 
-- **Full RESP2/RESP3 protocol** — Correctly parse and serialize the Redis wire protocol.
-- **Complete command set** — Core commands (`GET`, `SET`, `DEL`, expiration), plus Redis data structures: strings, lists, hashes, sets, sorted sets.
-- **Production-grade persistence** — Append-only file (AOF) and snapshotting (RDB).
-- **Concurrent by design** — Goroutine-based connection handling with proper synchronization from day one.
-- **Performance parity** — Throughput and latency competitive with Redis for the implemented feature set.
+Redis is one of the most influential pieces of infrastructure software of the past decade. Building a compatible server from scratch demonstrates how production-grade data systems work — from wire protocol design and concurrent I/O to memory management and persistence semantics.
+
+Redix reflects several deliberate engineering decisions:
+
+- **Protocol correctness.** A faithful implementation of the RESP2 serialization format, handling bulk strings, arrays, errors, integers, and null values as specified by the Redis protocol.
+- **Concurrency from day one.** Goroutine-based accept loop with per-connection state machines; all store access serialized through `sync.RWMutex`.
+- **Decoupled persistence.** The AOF module is wholly separate from the store. The store has no knowledge of persistence, enabling alternative strategies (RDB, replication) without storage-layer changes.
+- **Progressive maturity.** Each layer — protocol parsing, command dispatch, storage, persistence — is independently testable and replaceable.
 
 ## Supported commands
 
@@ -29,12 +33,47 @@ Redix is a from-scratch reimplementation of a Redis-compatible server that prior
 | `EXPIRE`         | ✓      |                                 |
 | `TTL`            | ✓      | Returns remaining seconds       |
 
-## Design
+## Architecture
 
-- **Zero external dependencies.** Everything is built on Go's standard library.
-- **Performance-oriented.** Concurrency model and data structures designed for throughput from the start.
-- **Didactic code.** Readability and clarity are first-class concerns — the codebase should be teachable without being naive.
-- **Progressive implementation.** Each component is built and understood in isolation before integration.
+```
+┌──────────┐   ┌──────────────┐   ┌────────────┐   ┌───────────┐
+│  Client  │──▶│   Server     │──▶│  Protocol  │──▶│  Handler  │
+│  (TCP)   │   │  (internal/  │   │  (internal/ │   │ (internal/│
+│          │   │   server)    │   │   protocol) │   │   resp)   │
+└──────────┘   └──────────────┘   └────────────┘   └─────┬─────┘
+                                                          │
+                                    ┌─────────────────────┼──────────────────┐
+                                    ▼                     ▼                  │
+                            ┌──────────────┐     ┌──────────────┐           │
+                            │    Store     │     │     AOF      │           │
+                            │  (internal/  │     │  (internal/  │           │
+                            │   store)     │     │    aof)      │           │
+                            └──────┬───────┘     └──────┬───────┘           │
+                                   │                     │                   │
+                                   └─────────────────────┼───────────────────┘
+                                                         │
+                                              (decoupled — store is
+                                               persistence-agnostic)
+```
+
+### Layer responsibilities
+
+| Layer | Package | Responsibility |
+|-------|---------|---------------|
+| Server | `internal/server/` | TCP listener, connection state machine, accept loop. Each connection runs in its own goroutine. |
+| Protocol | `internal/protocol/` | RESP2 type definitions, parser, and serializer. Handles byte-level wire encoding. |
+| Command | `internal/resp/` | Command dispatch and handler implementations. Translates parsed RESP frames into store operations. |
+| Store | `internal/store/` | Thread-safe in-memory key-value store. Supports strings, hashes, TTL, and automatic expired-key eviction via a background goroutine. |
+| Persistence | `internal/aof/` | Append-only file persistence. Fully decoupled: the store has no awareness of persistence semantics. |
+
+## Technical highlights
+
+- **Concurrent I/O.** Goroutine-per-connection model with non-blocking accept. Per-connection read deadlines prevent resource exhaustion from idle clients.
+- **Thread-safe storage.** `sync.RWMutex` guards all store operations. Readers never block writers; writes serialize only the critical section (hash-map mutation), keeping lock contention minimal for read-heavy workloads.
+- **TTL with automatic eviction.** Every key carries an absolute Unix expiration timestamp. A background goroutine scans the entire keyspace every 30 seconds, collecting expired candidates under read lock and revalidating them under write lock before removal.
+- **RESP2 wire protocol.** Hand-written parser covering bulk strings, simple strings, errors, integers, arrays, and null bulk strings — no generated code, no reflection.
+- **Decoupled persistence.** AOF is designed as an observer that records normalized commands after execution. The store remains persistence-agnostic, making it straightforward to add alternative persistence strategies (RDB snapshots, replication streams).
+- **Zero dependencies.** Standard library only. No frameworks, no ORMs, no third-party packages.
 
 ## Getting started
 
@@ -66,13 +105,13 @@ redis-cli GET foo
 
 Redix is configured through environment variables:
 
-| Variable                          | Default     | Description                        |
-| --------------------------------- | ----------- | ---------------------------------- |
-| `REDIX_PORT`                      | `6379`      | TCP port to listen on              |
-| `REDIX_CONNECTION_IDLE_TIMEOUT`   | (none)      | Connection idle timeout (e.g. `5m`) |
-| `REDIX_LOG_LEVEL`                 | `INFO`      | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| Variable                        | Default     | Description                              |
+| ------------------------------- | ----------- | ---------------------------------------- |
+| `REDIX_PORT`                    | `6379`      | TCP port to listen on                    |
+| `REDIX_CONNECTION_IDLE_TIMEOUT` | (none)      | Connection idle timeout (e.g. `5m`)      |
+| `REDIX_LOG_LEVEL`               | `INFO`      | Log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
 
-### Other commands
+### Development commands
 
 | Command      | Action                        |
 | ------------ | ----------------------------- |
@@ -84,14 +123,28 @@ Redix is configured through environment variables:
 ## Project structure
 
 ```
-cmd/redix/main.go          Entrypoint
-internal/
-├── config/                Environment-based configuration
-├── server/                TCP listener, connection state machine, accept loop
-├── protocol/              RESP type definitions, parser, and serializer
-├── resp/                  Command dispatch, handler implementations
-└── store/                 In-memory key-value store with TTL and hash support
+.
+├── cmd/
+│   └── redix/main.go          Entrypoint
+└── internal/
+    ├── aof/                   Append-only file persistence
+    ├── config/                Environment-based configuration
+    ├── protocol/              RESP type definitions, parser, and serializer
+    ├── resp/                  Command dispatch and handler implementations
+    ├── server/                TCP listener, connection state machine, accept loop
+    └── store/                 In-memory key-value store with TTL and hashes
 ```
+
+## Roadmap
+
+- AOF persistence: crash recovery and file compaction (rewrite)
+- RDB snapshot support
+- List, set, and sorted set data structures
+- Pub/Sub
+
+## Contributing
+
+Contributions are welcome. Please open an issue or pull request on [GitHub](https://github.com/AlexisPerdomo/redix).
 
 ## License
 
