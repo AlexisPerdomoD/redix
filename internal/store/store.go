@@ -1,7 +1,12 @@
 // Package store provides storage code for the redix server.
 package store
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
+
+const defaultExpireTimeLoop = time.Second * 30
 
 var (
 	ErrInvalidHashKey      = errors.New("invalid hash key")
@@ -13,6 +18,14 @@ var (
 type storeVal struct {
 	Val any
 	TTL int64
+}
+
+func (sv *storeVal) isNotExpirable() bool {
+	return sv.TTL == 0
+}
+
+func (sv *storeVal) isExpired() bool {
+	return !sv.isNotExpirable() && sv.TTL <= time.Now().Unix()
 }
 
 func ensureValidKey(key string) error {
@@ -142,11 +155,14 @@ func HExists(hashKey, key string) bool {
 	return mem.HExists(hashKey, key)
 }
 
-// TTL returns the time-to-live of a key in the store in unix time or nil if not expirable or key does not exist.
-// key is the key to get the time-to-live for.
-func TTL(key string) (*int64, error) {
+// TTL returns the seconds until the key expires
+// -2 means the key does not exist.
+// -1 means the key is not expirable.
+// 0 means the key has expired.
+// >0 means the key has not expired.
+func TTL(key string) int64 {
 	if err := ensureValidKey(key); err != nil {
-		return nil, err
+		return -2
 	}
 
 	return mem.TTL(key)

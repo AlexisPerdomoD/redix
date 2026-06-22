@@ -334,17 +334,8 @@ func ttlCmd(w io.Writer, b []*protocol.RESPVal) error {
 			}, w)
 	}
 
-	ttl, err := store.TTL(key)
-	if err != nil {
-		return err
-	}
-
-	if ttl == nil {
-		return protocol.FormatWrite(protocol.NilBulkStr(), w)
-	}
-
 	return protocol.FormatWrite(&protocol.RESPVal{
 		Type: protocol.RESPTypeInt,
-		Val:  *ttl,
+		Val:  store.TTL(key),
 	}, w)
 }

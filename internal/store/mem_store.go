@@ -21,6 +21,20 @@ func (st *MemStore) set(key string, val string, expireIn int64) {
 	st.data[key] = storeVal{val, ttl}
 }
 
+// Get gets the value of a key in the store.
+// key is the key to get the value for.
+// Returns the value and an error if there was an error.
+// Returns nil and nil if the key does not exist or has expired.
+func (st *MemStore) get(key string) *storeVal {
+	stVal, exists := st.data[key]
+
+	if exists && !stVal.isExpired() {
+		return &stVal
+	}
+
+	return nil
+}
+
 // Set sets the value of a key in the store.
 // key is the key to set the value for.
 // val is the value to set.
@@ -40,8 +54,8 @@ func (st *MemStore) HSet(hashKey, key, val string) error {
 
 	st.mtx.Lock()
 	defer st.mtx.Unlock()
-	stVal, exists := st.data[hashKey]
-	if !exists {
+	stVal := st.get(hashKey)
+	if stVal == nil {
 		st.data[hashKey] = storeVal{
 			Val: map[string]string{key: val},
 		}
@@ -54,22 +68,6 @@ func (st *MemStore) HSet(hashKey, key, val string) error {
 	}
 
 	hashMap[key] = val
-	return nil
-}
-
-// Get gets the value of a key in the store.
-// key is the key to get the value for.
-// Returns the value and an error if there was an error.
-// Returns nil and nil if the key does not exist or has expired.
-func (st *MemStore) get(key string) *storeVal {
-	stVal, exists := st.data[key]
-	isNotExpirable := stVal.TTL == 0
-	isNotExpired := stVal.TTL > time.Now().Unix()
-
-	if exists && (isNotExpirable || isNotExpired) {
-		return &stVal
-	}
-
 	return nil
 }
 
@@ -177,8 +175,8 @@ func (st *MemStore) HDel(hashKey string, keys ...string) {
 	st.mtx.Lock()
 	defer st.mtx.Unlock()
 
-	stVal, exists := st.data[hashKey]
-	if !exists {
+	stVal := st.get(hashKey)
+	if stVal == nil {
 		return
 	}
 
@@ -188,6 +186,10 @@ func (st *MemStore) HDel(hashKey string, keys ...string) {
 	}
 
 	for _, k := range keys {
+		if err := ensureValidKey(k); err != nil {
+			continue
+		}
+
 		delete(hashMap, k)
 	}
 }
@@ -228,20 +230,30 @@ func (st *MemStore) HExists(hashKey, key string) bool {
 	return exists
 }
 
-// TTL returns the time-to-live of a key in the store in unix time or nil if not expirable or key does not exist.
-// key is the key to get the time-to-live for.
-func (st *MemStore) TTL(key string) (*int64, error) {
+// TTL returns the seconds until the key expires.
+// -2 means the key does not exist.
+// -1 means the key is not expirable.
+// 0 means the key has expired.
+// >0 means the key has not expired.
+func (st *MemStore) TTL(key string) int64 {
 	st.mtx.RLock()
 	defer st.mtx.RUnlock()
 
 	stVal := st.get(key)
-
-	if stVal == nil || stVal.TTL == 0 {
-		return nil, nil
+	if stVal == nil {
+		return -2
 	}
 
-	res := stVal.TTL
-	return &res, nil
+	if stVal.isNotExpirable() {
+		return -1
+	}
+
+	if stVal.isExpired() {
+		return 0
+	}
+
+	return stVal.TTL - time.Now().Unix()
+
 }
 
 // Expire sets the time-to-live(unix time) of a key in the store.
@@ -256,6 +268,7 @@ func (st *MemStore) Expire(key string, expireIn int64) error {
 	if stVal == nil {
 		return nil
 	}
+
 	// 0 means no expiration
 	var ttl int64
 	if expireIn > 0 {
@@ -273,9 +286,62 @@ func (st *MemStore) FlushAll() {
 	st.data = make(map[string]storeVal)
 }
 
+// cleaningLoopMem periodically removes expired keys from the store.
+//
+// Expiration cleanup is performed in two phases:
+//
+//  1. A full keyspace scan under RLock collects candidate expired keys.
+//  2. Candidates are revalidated and removed under Lock.
+//
+// This approach minimizes exclusive lock contention while preserving
+// correctness in the presence of concurrent writes. Keys may be modified,
+// renewed, or deleted between phases, therefore expiration state is
+// revalidated before removal.
+//
+// Cleanup complexity remains O(total_keys) because the entire keyspace
+// must be scanned on each iteration. Future optimizations could maintain
+// a dedicated expiration index to avoid full scans and make cleanup
+// proportional to the number of expiring keys.
+func cleaningLoopMem(s *MemStore, expireTimeLoop time.Duration) {
+	if expireTimeLoop <= 0 {
+		expireTimeLoop = defaultExpireTimeLoop
+	}
+
+	ticker := time.NewTicker(expireTimeLoop)
+	for range ticker.C {
+		expiredKeys := make([]string, 0)
+		s.mtx.RLock()
+		for k, v := range s.data {
+			if v.isExpired() {
+				expiredKeys = append(expiredKeys, k)
+			}
+		}
+		s.mtx.RUnlock()
+
+		if len(expiredKeys) == 0 {
+			continue
+		}
+
+		s.mtx.Lock()
+		for _, k := range expiredKeys {
+			v, ok := s.data[k]
+			if !ok || !v.isExpired() {
+				continue
+			}
+
+			delete(s.data, k)
+		}
+
+		s.mtx.Unlock()
+	}
+}
+
 func NewMemStore() *MemStore {
-	return &MemStore{
+	s := &MemStore{
 		mtx:  sync.RWMutex{},
 		data: make(map[string]storeVal),
 	}
+
+	go cleaningLoopMem(s, defaultExpireTimeLoop)
+	return s
 }
